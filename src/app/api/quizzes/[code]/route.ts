@@ -1,8 +1,13 @@
-import { NextResponse } from "next/server";
+// src/app/api/quizzes/[code]/route.ts
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(_: Request, context: { params: Promise<{ code: string }> }) {
-  const { code } = await context.params;
+async function getParams(context: { params: { code: string } | Promise<{ code: string }> }) {
+  return context.params instanceof Promise ? await context.params : context.params;
+}
+
+export async function GET(_: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
+  const { code } = await getParams(context);
   if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
   const quiz = await prisma.quiz.findUnique({
@@ -15,9 +20,8 @@ export async function GET(_: Request, context: { params: Promise<{ code: string 
   return NextResponse.json(quiz);
 }
 
-// PUT handler already here
-export async function PUT(req: Request, context: { params: Promise<{ code: string }> }) {
-  const { code } = await context.params;
+export async function PUT(req: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
+  const { code } = await getParams(context);
   const body = await req.json();
   const { title, questions } = body;
 
@@ -28,7 +32,7 @@ export async function PUT(req: Request, context: { params: Promise<{ code: strin
     data: {
       title,
       questions: {
-        deleteMany: {}, // remove old questions
+        deleteMany: {},
         create: questions,
       },
     },
@@ -38,12 +42,10 @@ export async function PUT(req: Request, context: { params: Promise<{ code: strin
   return NextResponse.json(quiz);
 }
 
-// ✅ Add DELETE
-export async function DELETE(_: Request, context: { params: Promise<{ code: string }> }) {
-  const { code } = await context.params;
+export async function DELETE(_: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
+  const { code } = await getParams(context);
   if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
-  // Delete quiz and related questions and participants
   await prisma.participant.deleteMany({ where: { quiz: { code } } });
   await prisma.question.deleteMany({ where: { quiz: { code } } });
   await prisma.quiz.delete({ where: { code } });

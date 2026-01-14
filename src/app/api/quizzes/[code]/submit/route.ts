@@ -1,47 +1,38 @@
 // src/app/api/quizzes/[code]/submit/route.ts
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
 
-export async function POST(req: Request, context: { params: Promise<{ code: string }> }) {
+async function getParams(context: { params: { code: string } | Promise<{ code: string }> }) {
+  return context.params instanceof Promise ? await context.params : context.params;
+}
+
+export async function POST(req: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
   try {
-    // unwrap params
-    const { code } = await context.params;
+    const { code } = await getParams(context);
+    if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
-    if (!code) {
-      return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
-    }
-
-    // read request body
     const body = await req.json();
     const { name, answers } = body;
+    if (!name || !answers) return NextResponse.json({ error: "Name and answers are required" }, { status: 400 });
 
-    if (!name || !answers) {
-      return NextResponse.json({ error: "Name and answers are required" }, { status: 400 });
-    }
-
-    // find the quiz
     const quiz = await prisma.quiz.findUnique({
       where: { code },
       include: { questions: true },
     });
 
-    if (!quiz) {
-      return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
-    }
+    if (!quiz) return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
 
-    // calculate score
     let score = 0;
     quiz.questions.forEach((q, idx) => {
-      if (answers[idx] === q.answer) score += 1;
+      if (answers[idx] === q.answer) score++;
     });
 
-    // store participant
     const participant = await prisma.participant.create({
       data: {
         name,
         answers,
         score,
-        quiz: { connect: { id: quiz.id } },
+        quizId: quiz.id, // adjust if your schema uses quizId
       },
     });
 
