@@ -1,13 +1,11 @@
-// src/app/api/quizzes/[code]/start/route.ts
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-async function getParams(context: { params: { code: string } | Promise<{ code: string }> }) {
-  return context.params instanceof Promise ? await context.params : context.params;
-}
-
-export async function POST(_: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
-  const { code } = await getParams(context);
+export async function POST(
+  _: NextRequest, 
+  context: { params: Promise<{ code: string }> } // ✅ Add Promise wrapper
+) {
+  const { code } = await context.params; // ✅ Await the params
   if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
   try {

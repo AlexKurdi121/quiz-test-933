@@ -1,13 +1,12 @@
 // src/app/api/quizzes/[code]/route.ts
-import { NextResponse, NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-async function getParams(context: { params: { code: string } | Promise<{ code: string }> }) {
-  return context.params instanceof Promise ? await context.params : context.params;
-}
-
-export async function GET(_: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
-  const { code } = await getParams(context);
+export async function GET(
+  _: NextRequest, 
+  context: { params: Promise<{ code: string }> } // ✅ Add Promise wrapper
+) {
+  const { code } = await context.params; // ✅ Await the params
   if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
   const quiz = await prisma.quiz.findUnique({
@@ -20,19 +19,22 @@ export async function GET(_: NextRequest, context: { params: { code: string } | 
   return NextResponse.json(quiz);
 }
 
-export async function PUT(req: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
-  const { code } = await getParams(context);
+export async function PUT(
+  req: NextRequest, 
+  context: { params: Promise<{ code: string }> } // ✅ Add Promise wrapper
+) {
+  const { code } = await context.params; // ✅ Await the params
+  if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
+
   const body = await req.json();
   const { title, questions } = body;
-
-  if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
   const quiz = await prisma.quiz.update({
     where: { code },
     data: {
       title,
       questions: {
-        deleteMany: {},
+        deleteMany: {}, // remove old questions
         create: questions,
       },
     },
@@ -42,8 +44,11 @@ export async function PUT(req: NextRequest, context: { params: { code: string } 
   return NextResponse.json(quiz);
 }
 
-export async function DELETE(_: NextRequest, context: { params: { code: string } | Promise<{ code: string }> }) {
-  const { code } = await getParams(context);
+export async function DELETE(
+  _: NextRequest, 
+  context: { params: Promise<{ code: string }> } // ✅ Add Promise wrapper
+) {
+  const { code } = await context.params; // ✅ Await the params
   if (!code) return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
 
   await prisma.participant.deleteMany({ where: { quiz: { code } } });
