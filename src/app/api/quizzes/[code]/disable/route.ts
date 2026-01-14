@@ -1,16 +1,15 @@
 // src/app/api/quizzes/[code]/disable/route.ts
-import { prisma } from "@/lib/prisma";
 import { NextResponse, NextRequest } from "next/server";
-
-interface Params {
-  code: string;
-}
+import { prisma } from "@/lib/prisma";
 
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<Params> } // ✅ This is what Next.js expects
+  context: { params: { code: string } | Promise<{ code: string }> } // ✅ support promise
 ) {
-  const { code } = await context.params; // ✅ Await the promise
+  // unwrap params safely
+  const params =
+    context.params instanceof Promise ? await context.params : context.params;
+  const code = params.code;
 
   if (!code) {
     return NextResponse.json({ error: "Quiz code required" }, { status: 400 });
@@ -23,10 +22,10 @@ export async function POST(
     });
 
     return NextResponse.json(quiz);
-  } catch (err) {
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Failed to disable quiz", details: (err as any).message },
-      { status: 500 }
+      { error: error.message || "Quiz not found" },
+      { status: 404 }
     );
   }
 }
